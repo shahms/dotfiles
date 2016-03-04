@@ -15,3 +15,5 @@ done
 find "$BASE" -type f | while read dotfile; do
   ln -s "${dotfile}" "$(homepath "$dotfile")"
 done
+
+fc-cache -vf ~/.fonts/
