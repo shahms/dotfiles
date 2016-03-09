@@ -13,7 +13,7 @@ for rcfile in $(ls ~/.bash.d/??-*.sh | sort -n); do
   source "$rcfile"
 done
 
-_bashrc_uniqe_path() {
+_bashrc_uniq_path() {
   python <<EOF
 import os
 seen = {}
@@ -22,4 +22,4 @@ print ":".join(seen.setdefault(p, p)
                if p not in seen)
 EOF
 }
-export PATH="$(_bashrc_uniqe_path)"
+export PATH="$(_bashrc_uniq_path)"
