@@ -14,12 +14,17 @@ for rcfile in $(ls ~/.bash.d/??-*.sh | sort -n); do
 done
 
 _bashrc_uniq_path() {
-  python <<EOF
-import os
-seen = {}
-print ":".join(seen.setdefault(p, p)
-               for p in os.environ["PATH"].split(":")
-               if p not in seen)
-EOF
+  declare -A seen
+  local new_path
+  IFS=":"
+  for entry in "$PATH"; do
+    if [[ "${seen[$entry]}" ]]; then
+      continue
+    else
+      seen[$entry]=1
+      append new_path "$entry"
+    fi
+  done
+  echo "$new_path"
 }
 export PATH="$(_bashrc_uniq_path)"
