@@ -50,7 +50,7 @@ _setprompt() {
   local PSx="${BLUE}[$USER@$HOSTNAME:${PATHSTART}\$(prompt_pwd)${PATHEND}]\\n${RED}\\\$${RESET} "
 
   case $TERM in
-    xterm* | rxvt* | gnome | konsole | vt??? | screen)
+    xterm* | rxvt* | gnome | konsole | vt??? | screen*)
       # enable UTF-8 support
       export LANG=en_US.UTF8
       echo -ne '\033%G'
