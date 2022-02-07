@@ -47,7 +47,7 @@ _setprompt() {
   local RESET=$(_escaped '\033[0m')
   local PATHSTART=$(_escaped "${UNDERON_}${RED_}")
   local PATHEND=$(_escaped "${UNDEROFF_}${BLUE_}")
-  local PSx="${BLUE}[${PATHSTART}\$(prompt_pwd)${PATHEND}]\\n${RED}\\\$${RESET} "
+  local PSx="${BLUE}[$USER@$HOSTNAME:${PATHSTART}\$(prompt_pwd)${PATHEND}]\\n${RED}\\\$${RESET} "
 
   case $TERM in
     xterm* | rxvt* | gnome | konsole | vt??? | screen)
