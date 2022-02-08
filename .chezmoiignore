@@ -1,2 +1,4 @@
 LICENSE
 README.md
+
+.tmux/plugins/** # Ignore the tmux plugins which are managed by tpm.
