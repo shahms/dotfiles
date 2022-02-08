@@ -1,2 +1,0 @@
-#!/bin/bash
-chezmoi completion bash --output=$HOME/.bash_completion.d/chezmoi
