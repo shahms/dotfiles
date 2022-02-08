@@ -28,3 +28,10 @@ _bashrc_uniq_path() {
   echo "$new_path"
 }
 export PATH="$(_bashrc_uniq_path)"
+
+for cmd in nvim vim vi; do
+  if command -v $cmd > /dev/null; then
+    export EDITOR=$cmd
+    break
+  fi
+done
