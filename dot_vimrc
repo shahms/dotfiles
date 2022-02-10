@@ -89,3 +89,8 @@ set termguicolors
 " Restore all the things.
 filetype plugin indent on
 syntax enable
+
+augroup autoformat
+  autocmd!
+  autocmd FileType bzl AutoFormatBuffer buildifier
+augroup END
