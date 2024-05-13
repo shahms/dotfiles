@@ -93,4 +93,5 @@ syntax enable
 augroup autoformat
   autocmd!
   autocmd FileType bzl AutoFormatBuffer buildifier
+  autocmd FileType python AutoFormatBuffer black
 augroup END

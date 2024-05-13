@@ -52,7 +52,7 @@ _setprompt() {
   case $TERM in
     xterm* | rxvt* | gnome | konsole | vt??? | screen* | tmux* | alacritty)
       # enable UTF-8 support
-      export LANG=en_US.UTF8
+      export LANG=en_US.UTF-8
       echo -ne '\033%G'
       # Set window terminal title
       export PROMPT_COMMAND='echo -ne "\033]2;$USER@$HOSTNAME:$(prompt_pwd)\007"'
