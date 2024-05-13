@@ -1,0 +1,9 @@
+[bell]
+duration = 1
+
+[shell]
+args = ["new-session", "-A", "-s", "default"]
+program = "/usr/bin/tmux"
+
+[window]
+startup_mode = "Maximized"
