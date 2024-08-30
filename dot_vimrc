@@ -36,7 +36,8 @@ call plug#end()
 call maktaba#plugin#Detect()
 call glaive#Install()
 
-Glaive codefmt plugin[mappings] clang_format_style='google'
+Glaive codefmt plugin[mappings]
+      \ clang_format_style='google'
 
 " Make YCM compatible with UltiSnips (using supertab)
 let g:ycm_key_list_select_completion = ['<C-n>', '<Down>']
@@ -74,8 +75,13 @@ set smartcase
 " use UTF-8 where possible
 set encoding=utf-8
 
-" map Ctrl+C to copy-via-OSC52 in visual mode
-vmap <C-c> :OSCYank<CR>
+"- In normal mode, <leader>c is an operator that will copy the given
+"  text to the system clipboard.
+nmap <leader>c <Plug>OSCYankOperator
+" - In normal mode, <leader>cc will copy the current line.
+nmap <leader>cc <leader>c_
+" - In visual mode, <leader>c will copy the current selection.
+vmap <leader>c <Plug>OSCYankVisual
 
 " enable modeline support
 set modeline
@@ -96,5 +102,5 @@ syntax enable
 augroup autoformat
   autocmd!
   autocmd FileType bzl AutoFormatBuffer buildifier
-  autocmd FileType python AutoFormatBuffer black
+  "autocmd FileType python AutoFormatBuffer black
 augroup END
