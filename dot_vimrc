@@ -29,6 +29,9 @@ Plug 'tmux-plugins/vim-tmux'
 Plug 'ojroques/vim-oscyank'
 Plug 'ConradIrwin/vim-bracketed-paste'
 " Plug 'moorereason/vim-markdownfmt'
+if has('nvim')
+  Plug 'neovim/nvim-lspconfig'
+endif
 call plug#end()
 call maktaba#plugin#Detect()
 call glaive#Install()
