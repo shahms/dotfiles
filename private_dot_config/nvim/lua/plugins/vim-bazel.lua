@@ -1,0 +1,3 @@
+return {
+  { "bazelbuild/vim-bazel" },
+}
