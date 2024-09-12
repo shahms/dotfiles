@@ -1,3 +1,3 @@
 return {
-  { "bazelbuild/vim-bazel" },
+  { "bazelbuild/vim-bazel", dependencies = {"google/vim-maktaba"} },
 }
