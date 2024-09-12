@@ -1,4 +1,4 @@
-declare -A PROMPT_DIRREPL  # An associative array of CWD replacements.
+declare -A PROMPT_DIRREPL    # An associative array of CWD replacements.
 PROMPT_DIRREPL=([$HOME]="~") # Replace $HOME with ~ by default.
 
 prompt_pwd() {
@@ -12,8 +12,8 @@ prompt_pwd() {
   echo "$PWD"
 }
 
-_escaped () {
-    echo -n "\\[$1\\]"
+_escaped() {
+  echo -n "\\[$1\\]"
 }
 
 _setprompt() {
@@ -53,7 +53,10 @@ _setprompt() {
     xterm* | rxvt* | gnome | konsole | vt??? | screen* | tmux* | alacritty)
       # enable UTF-8 support
       export LANG=en_US.UTF-8
-      echo -ne '\033%G'
+      # Bash occasionally mistakenly runs an interactive shell,
+      # which results in ^[%G in text output.  Re-enable this
+      # (via PROMPT_COMMAND, maybe?) if issues occur with UTF-8 text.
+      # echo -ne '\033%G'
       # Set window terminal title
       export PROMPT_COMMAND='echo -ne "\033]2;$USER@$HOSTNAME:$(prompt_pwd)\007"'
       export PS1="$PSx"
