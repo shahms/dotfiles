@@ -1,3 +1,3 @@
 return {
-  { "ervandew/supertab" },
+  { "ervandew/supertab", enabled = false },
 }
