@@ -1,63 +1,22 @@
-
 set directory=~/.vim.swap.d/
 set nocompatible
 
-" Attempt to install vim-plug if it isn't already present.
-" chezmoi should also take care of this, but just in case.
-if empty(glob('~/.vim/autoload/plug.vim'))
-  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs
-    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-  autocmd VimEnter * PlugInstall | source '~/.vimrc'
-endif
-
-call plug#begin('~/.vim/plugged')
-Plug 'google/vim-maktaba'
-Plug 'google/vim-glaive'
-Plug 'google/vim-codefmt'
-Plug 'google/vim-syncopate'
-Plug 'ervandew/supertab'
-Plug 'Valloric/YouCompleteMe'
-Plug 'SirVer/ultisnips'
-Plug 'honza/vim-snippets'
-Plug 'fatih/vim-go'
-Plug 'vim-airline/vim-airline'
-Plug 'bazelbuild/vim-bazel'
-Plug 'scrooloose/syntastic'
-" Plug 'christoomey/vim-tmux-navigator'
-Plug 'edkolev/tmuxline.vim'
-Plug 'tmux-plugins/vim-tmux'
-Plug 'ojroques/vim-oscyank'
-Plug 'ConradIrwin/vim-bracketed-paste'
-" Plug 'moorereason/vim-markdownfmt'
-if has('nvim')
-  Plug 'neovim/nvim-lspconfig'
-endif
-call plug#end()
-call maktaba#plugin#Detect()
-call glaive#Install()
-
-Glaive codefmt plugin[mappings]
-      \ clang_format_style='google'
-
-" Make YCM compatible with UltiSnips (using supertab)
-let g:ycm_key_list_select_completion = ['<C-n>', '<Down>']
-let g:ycm_key_list_previous_completion = ['<C-p>', '<Up>']
-let g:SuperTabDefaultCompletionType = '<C-n>'
-
-" Better key bindings for UltiSnipsExpandTrigger
-let g:UltiSnipsExpandTrigger = '<tab>'
-let g:UltiSnipsJumpForwardTrigger = '<tab>'
-let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
-
-" Use simple separators.
-let g:tmuxline_powerline_separators=0
-
 " Always use a status line.
 set laststatus=2
-" Merge comments with join.
-set formatoptions+=j
+" j: merge comments with join,
+" c: auto-wrap comments,
+" r,o: insert comment leader in Insert and Normal mode
+" q: allow formatting comments with 'gq'
+" n: recognize lists when formatting text
+set formatoptions+=jcroqn
 " Mouse!
 set mouse=a
+" Use popup for completions (rather than an obnoxious extra window)
+set completeopt+=popup
+
+" TODO(shahms): Highlight trailing whitespace in yellow, but not when typing
+" This is a workaround for now.
+set list
 
 " tabs are wrong
 set expandtab
@@ -65,6 +24,7 @@ set shiftwidth=2
 set tabstop=2
 
 let mapleader=","
+let maplocalleader=","
 
 " incremental search and highlighting
 set incsearch
@@ -74,14 +34,6 @@ set smartcase
 
 " use UTF-8 where possible
 set encoding=utf-8
-
-"- In normal mode, <leader>c is an operator that will copy the given
-"  text to the system clipboard.
-nmap <leader>c <Plug>OSCYankOperator
-" - In normal mode, <leader>cc will copy the current line.
-nmap <leader>cc <leader>c_
-" - In visual mode, <leader>c will copy the current selection.
-vmap <leader>c <Plug>OSCYankVisual
 
 " enable modeline support
 set modeline
@@ -98,9 +50,3 @@ set termguicolors
 " Restore all the things.
 filetype plugin indent on
 syntax enable
-
-augroup autoformat
-  autocmd!
-  autocmd FileType bzl AutoFormatBuffer buildifier
-  "autocmd FileType python AutoFormatBuffer black
-augroup END
