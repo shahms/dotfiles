@@ -50,7 +50,7 @@ _setprompt() {
   local PSx="${BLUE}[$USER@$HOSTNAME:${PATHSTART}\$(prompt_pwd)${PATHEND}]\\n${RED}\\\$${RESET} "
 
   case $TERM in
-    xterm* | rxvt* | gnome | konsole | vt??? | screen* | tmux* | alacritty)
+    xterm* | rxvt* | gnome | konsole | vt??? | screen* | tmux* | alacritty*)
       # enable UTF-8 support
       export LANG=en_US.UTF-8
       # Bash occasionally mistakenly runs an interactive shell,
