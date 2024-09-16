@@ -4,3 +4,9 @@
     exact = true
     stripComponents = 1
     refreshPeriod = "168h"
+[".local/share/terminfo/alacritty.info"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/alacritty/alacritty/master/extra/alacritty.info"
+[".local/share/terminfo/ncurses-src.info"]
+    type = "file"
+    url = "https://raw.githubusercontent.com/mirror/ncurses/master/misc/terminfo.src"
