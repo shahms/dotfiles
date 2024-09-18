@@ -3,13 +3,13 @@ local function t(str)
 end
 local function jump_forward(cmp)
   return cmp.mapping({
-    c = function()
-      if cmp.visible() then
-        cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
-      else
-        cmp.complete()
-      end
-    end,
+    -- c = function()
+    --   if cmp.visible() then
+    --     cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
+    --   else
+    --     cmp.complete()
+    --   end
+    -- end,
     i = function(fallback)
       if cmp.visible() then
         cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
@@ -30,13 +30,13 @@ local function jump_forward(cmp)
 end
 local function jump_backward(cmp)
   return cmp.mapping({
-    c = function()
-      if cmp.visible() then
-        cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
-      else
-        cmp.complete()
-      end
-    end,
+    -- c = function()
+    --   if cmp.visible() then
+    --     cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
+    --   else
+    --     cmp.complete()
+    --   end
+    -- end,
     i = function(fallback)
       if cmp.visible() then
         cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
@@ -57,13 +57,13 @@ local function jump_backward(cmp)
 end
 local function next_or_down(cmp)
   return cmp.mapping({
-    c = function()
-      if cmp.visible() then
-        cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
-      else
-        vim.api.nvim_feedkeys(t("<Down>"), "n", true)
-      end
-    end,
+    -- c = function()
+    --   if cmp.visible() then
+    --     cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
+    --   else
+    --     vim.api.nvim_feedkeys(t("<Down>"), "n", true)
+    --   end
+    -- end,
     i = function(fallback)
       if cmp.visible() then
         cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
@@ -75,13 +75,13 @@ local function next_or_down(cmp)
 end
 local function prev_or_up(cmp)
   return cmp.mapping({
-    c = function()
-      if cmp.visible() then
-        cmp.select_prev_item({ behavior = cmp.SelectBehavior.Select })
-      else
-        vim.api.nvim_feedkeys(t("<Up>"), "n", true)
-      end
-    end,
+    -- c = function()
+    --   if cmp.visible() then
+    --     cmp.select_prev_item({ behavior = cmp.SelectBehavior.Select })
+    --   else
+    --     vim.api.nvim_feedkeys(t("<Up>"), "n", true)
+    --   end
+    -- end,
     i = function(fallback)
       if cmp.visible() then
         cmp.select_prev_item({ behavior = cmp.SelectBehavior.Select })
@@ -101,6 +101,7 @@ return {
       local cmp = require "cmp"
       -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
       cmp.setup.cmdline({ '/', '?' }, {
+        enabled = false,
         mapping = cmp.mapping.preset.cmdline(),
         sources = {
           { name = 'buffer' }
@@ -110,6 +111,7 @@ return {
       -- Use the built-in completion for ":".
       cmp.setup.cmdline(':', {
         enabled = false,
+
         -- But keep the recommended configuration in case.
         mapping = cmp.mapping.preset.cmdline(),
         sources = cmp.config.sources({
