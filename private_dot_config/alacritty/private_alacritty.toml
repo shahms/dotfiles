@@ -1,10 +1,12 @@
 [bell]
 duration = 1
 
-[shell]
+[terminal.shell]
 args = ["new-session", "-A", "-s", "default"]
 program = "/usr/bin/tmux"
 
 [env]
 # Enable truecolor support.
 TERM = "alacritty-direct"
+
+[terminal]
