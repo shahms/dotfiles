@@ -12,7 +12,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     vim.keymap.set({ 'n', 'v' }, '<Leader>ca', vim.lsp.buf.code_action, opts)
     vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
     local client = vim.lsp.get_client_by_id(ev.data.client_id)
-    if client and client.supports_method('textDocument/format') then
+    if client and client:supports_method('textDocument/formatting') then
       -- Override the vim-codefmt bindings for this buffer.
       vim.keymap.set('n', '<Leader>=b', vim.lsp.buf.format, opts)
     end
