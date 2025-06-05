@@ -1,1 +1,1 @@
-require 'lspconfig'.bzl.setup {}
+vim.lsp.enable("bzl")

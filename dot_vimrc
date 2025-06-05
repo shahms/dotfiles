@@ -47,6 +47,9 @@ if &t_8b == ""
 endif
 set termguicolors
 
+" Allow exiting terminal mode with <Esc>
+tnoremap <Esc> <C-\><C-n>
+
 " Restore all the things.
 filetype plugin indent on
 syntax enable

@@ -141,7 +141,7 @@ return {
           ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "i", "c" }),
           ["<C-e>"] = cmp.mapping({ i = cmp.mapping.close(), c = cmp.mapping.close() }),
           ["<CR>"] = cmp.mapping(
-            cmp.mapping.confirm({ behavior = cmp.ConfirmBehavior.Replace, select = false }), {"i", "c"}
+            cmp.mapping.confirm({ behavior = cmp.ConfirmBehavior.Replace, select = false }), { "i", "c" }
           ),
         },
         sources = cmp.config.sources({
@@ -151,12 +151,33 @@ return {
           { name = "buffer" },
         }),
       }
-    end
+    end,
+    enabled = false,
   },
-  { "hrsh7th/cmp-nvim-lsp" },
-  { "hrsh7th/cmp-buffer" },
-  { "hrsh7th/cmp-path" },
-  { "hrsh7th/cmp-cmdline" },
-  { "quangnguyen30192/cmp-nvim-ultisnips" },
+  {
+    "hrsh7th/cmp-nvim-lsp",
+    opts = function()
+      --vim.lsp.config("*", {
+      --  capabilities = require("cmp_nvim_lsp").default_capabilities()
+      --})
+      return {}
+    end,
+    enabled = false,
+  },
+  {
+    "hrsh7th/cmp-buffer",
+    enabled = false,
+  },
+  {
+    "hrsh7th/cmp-path",
+    enabled = false,
+  },
+  {
+    "hrsh7th/cmp-cmdline",
+    enabled = false,
+  },
+  {
+    "quangnguyen30192/cmp-nvim-ultisnips",
+    enabled = false,
+  },
 }
-

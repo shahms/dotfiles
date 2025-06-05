@@ -7,6 +7,11 @@ set background=dark
 " colorscheme torte
 colorscheme slate
 
+" Use the terminal emulator's color palette.
+for i in range(16)
+  let g:terminal_ansi_colors[i]= 'NONE'
+  let g:terminal_color_{i} = 'NONE'
+endfor
 
 " TODO(shahms): Migrate this all to init.lua
 source ~/.config/nvim/lua/config/lazy.lua

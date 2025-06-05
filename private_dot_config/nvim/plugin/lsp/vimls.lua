@@ -1,1 +1,1 @@
-require 'lspconfig'.vimls.setup {}
+vim.lsp.enable("vimls")
