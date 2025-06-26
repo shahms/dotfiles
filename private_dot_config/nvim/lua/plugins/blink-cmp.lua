@@ -45,6 +45,13 @@ return {
       -- list = { selection = { preselect = false } }
     },
 
+    cmdline = {
+      -- Don't preselect the first item when the list is already visible.
+      -- This allows a single <Tab> to select the first element for chained
+      -- completion of e.g. paths.
+      completion = { list = { selection = { preselect = false }}},
+    },
+
     -- Default list of enabled providers defined so that you can extend it
     -- elsewhere in your config, without redefining it, due to `opts_extend`
     sources = {
@@ -54,7 +61,7 @@ return {
         buffer = {
           opts = {
             -- Only source completions from the current buffer and only
-            -- if it's a reguarly file.
+            -- if it's a regular file.
             get_bufnrs = function()
               local ignore_types = {
                 terminal = true,
