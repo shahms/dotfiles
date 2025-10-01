@@ -56,7 +56,9 @@ local function bazel_info(path, cb)
       cb(vim.iter(gsplitlines(result.stdout)):fold({},
         function(acc, line)
           local key, value = line:match("%s*([^:]+): ([^\n]+)")
-          acc[key] = value
+          if key then
+            acc[key] = value
+          end
           return acc
         end))
     end)
