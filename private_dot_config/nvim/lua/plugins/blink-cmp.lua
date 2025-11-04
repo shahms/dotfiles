@@ -1,7 +1,17 @@
 return {
   "saghen/blink.cmp",
   -- optional: provides snippets for the snippet source
-  -- dependencies = { 'rafamadriz/friendly-snippets' },
+  dependencies = {
+    {
+      'L3MON4D3/LuaSnip',
+      version = 'v2.*',
+      config = function()
+        require('luasnip.loaders.from_vscode')
+            .lazy_load()
+      end,
+      dependencies = { 'rafamadriz/friendly-snippets' },
+    },
+  },
 
   -- use a release tag to download pre-built binaries
   version = '1.*',
@@ -49,8 +59,11 @@ return {
       -- Don't preselect the first item when the list is already visible.
       -- This allows a single <Tab> to select the first element for chained
       -- completion of e.g. paths.
-      completion = { list = { selection = { preselect = false }}},
+      completion = { list = { selection = { preselect = false } } },
     },
+
+    -- The built-in snippets support is still missing some features.
+    snippets = { preset = 'luasnip' },
 
     -- Default list of enabled providers defined so that you can extend it
     -- elsewhere in your config, without redefining it, due to `opts_extend`

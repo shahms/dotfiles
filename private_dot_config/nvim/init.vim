@@ -7,6 +7,9 @@ set background=dark
 " colorscheme torte
 colorscheme slate
 
+" LspInlayHint should look like comments
+hi link LspInlayHint Comment
+
 " Use the terminal emulator's color palette.
 for i in range(16)
   let g:terminal_ansi_colors[i]= 'NONE'
