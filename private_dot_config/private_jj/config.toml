@@ -9,3 +9,14 @@ log_node = 'if(self && !current_working_copy && !immutable && !conflict && in_br
 
 [template-aliases]
 "in_branch(commit)" = 'commit.contained_in("immutable_heads()..bookmarks()")'
+
+[aliases]
+up = ["rebase", "-d", "main", "-b", "immutable_heads().. & mutable()"]
+tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
+
+[ui]
+default-command = "log"
+
+[revset-aliases]
+'closest_bookmark(to)' = 'heads(::to & bookmarks())'
+'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
