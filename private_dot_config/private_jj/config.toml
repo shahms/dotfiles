@@ -11,7 +11,10 @@ log_node = 'if(self && !current_working_copy && !immutable && !conflict && in_br
 "in_branch(commit)" = 'commit.contained_in("immutable_heads()..bookmarks()")'
 
 [aliases]
-up = ["rebase", "-d", "main", "-b", "immutable_heads().. & mutable()"]
+#up = ["rebase", "-d", "main", "-b", "immutable_heads().. & mutable()"]
+# Rebase any branches not on trunk() which aren't descended from a different remote bookmark.
+# We don't want to rebase revisions which have been pushed upstream unintentionally.
+sync = ["rebase", "-d", "trunk()", "-b", "heads(trunk()..) ~ heads(remote_bookmarks())::"]
 tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
 
 [ui]
