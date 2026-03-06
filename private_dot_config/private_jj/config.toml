@@ -14,8 +14,9 @@ log_node = 'if(self && !current_working_copy && !immutable && !conflict && in_br
 #up = ["rebase", "-d", "main", "-b", "immutable_heads().. & mutable()"]
 # Rebase any branches not on trunk() which aren't descended from a different remote bookmark.
 # We don't want to rebase revisions which have been pushed upstream unintentionally.
-sync = ["rebase", "-d", "trunk()", "-b", "heads(trunk()..) ~ heads(remote_bookmarks())::"]
-tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
+sync = ["rebase", "-o", "trunk()", "-b", "heads(trunk()..) ~ heads(remote_bookmarks() | immutable_heads())::"]
+#tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
+tug = ["bookmark", "advance"]
 
 [ui]
 default-command = "log"
@@ -23,3 +24,6 @@ default-command = "log"
 [revset-aliases]
 'closest_bookmark(to)' = 'heads(::to & bookmarks())'
 'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
+
+[revsets]
+bookmark-advance-to = 'closest_pushable(@)'

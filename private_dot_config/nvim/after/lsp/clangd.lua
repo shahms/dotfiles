@@ -53,6 +53,9 @@ end
 local function bazel_info(path, cb)
   vim.system({ "bazel", "info", "workspace", "execution_root" }, { text = true, cwd = vim.fs.dirname(path) },
     function(result)
+      if result.code ~= 0 then
+        return
+      end
       cb(vim.iter(gsplitlines(result.stdout)):fold({},
         function(acc, line)
           local key, value = line:match("%s*([^:]+): ([^\n]+)")
@@ -68,6 +71,8 @@ local function bazel_print_action(workspace, path, cb)
   local cmd = {
     "bazel",
     "print_action",
+    "-c", "opt",
+    "--features=-layering_check",
     "--nobuild",
     "--keep_going",
     "--compile_one_dependency",

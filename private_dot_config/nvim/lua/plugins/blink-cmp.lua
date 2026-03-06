@@ -71,6 +71,13 @@ return {
       default = { 'lsp', 'path', 'snippets', 'buffer' },
       providers = {
         lsp = { fallbacks = {} },
+        path = {
+          opts = {
+            get_cwd = function(_)
+              return vim.fn.getcwd()
+            end,
+          }
+        },
         buffer = {
           opts = {
             -- Only source completions from the current buffer and only
