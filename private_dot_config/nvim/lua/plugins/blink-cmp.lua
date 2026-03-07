@@ -8,6 +8,9 @@ return {
       config = function()
         require('luasnip.loaders.from_vscode')
             .lazy_load()
+        require('luasnip.loaders.from_lua').load({
+          paths = vim.fs.joinpath(vim.fn.stdpath("data"), "luasnippets"),
+        })
       end,
       dependencies = { 'rafamadriz/friendly-snippets' },
     },
