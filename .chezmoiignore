@@ -1,2 +1,5 @@
 LICENSE
 README.md
+.config/jj/repos
+.config/jj/workspaces
+.config/nvim/lazy-lock.json

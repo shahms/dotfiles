@@ -17,13 +17,52 @@ log_node = 'if(self && !current_working_copy && !immutable && !conflict && in_br
 sync = ["rebase", "-o", "trunk()", "-b", "heads(trunk()..) ~ heads(remote_bookmarks() | immutable_heads())::"]
 #tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
 tug = ["bookmark", "advance"]
+push = ["util", "exec", "--", "uvx", "jj-pre-push", "push"]
 
 [ui]
 default-command = "log"
+#diff-editor = ":builtin"
+diff-editor =  "hunk"
+diff-instructions = false
+merge-editor = ":builtin"
+
+[merge-tools.hunk]
+program = "sh"
+diff-invocation-mode = "dir"
+diff-do-chdir = false
+conflict-marker-style = "snapshot"
+diff-args = [
+  "-c",
+  'exec nvim -c "HunkDiffView $1 $2" </dev/tty >/dev/tty',
+  "hunk-difftool",
+  "$left",
+  "$right",
+]
+edit-args = [
+  "-c",
+  'exec nvim -c "HunkDiffEditor $1 $2 $3"',
+  "hunk-diffedit",
+  "$left",
+  "$right",
+  "$output"
+]
 
 [revset-aliases]
 'closest_bookmark(to)' = 'heads(::to & bookmarks())'
 'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
+#'active' = '@ | ((bookmarks()::visible_heads()) & mine()) | trunk()'
+'active_heads' = '@ | ((visible_heads() | bookmarks()) & mine()) | bookmarks(shahms/*)'
+'active' = 'active_heads | roots(trunk()..active_heads) | trunk()'
+'branch(r, base)' = 'base..(r::)'
+'branch(r)' = 'branch(r, main)'
+'branch()' = 'branch(@)'
 
 [revsets]
 bookmark-advance-to = 'closest_pushable(@)'
+fix = '@'
+log = 'active'
+
+
+[git]
+# Keep work in progress off the remote, by description or by bookmark name.
+private-commits = 'description(regex:"^WIP: ") | bookmarks(glob:"wip-*")'

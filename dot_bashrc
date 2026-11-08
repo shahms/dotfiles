@@ -14,16 +14,13 @@ for rcfile in $(ls ~/.bash.d/??-*.sh | sort -n); do
 done
 
 _bashrc_uniq_path() {
-  declare -A seen
-  local new_path
-  IFS=":"
-  for entry in "$PATH"; do
-    if [[ "${seen[$entry]}" ]]; then
-      continue
-    else
-      seen[$entry]=1
-      append new_path "$entry"
-    fi
+  # A case match rather than an associative array, which bash 3.2 lacks.
+  local entry new_path= IFS=:
+  for entry in $PATH; do
+    case ":$new_path:" in
+      *":$entry:"*) ;;
+      *) new_path="${new_path:+$new_path:}$entry" ;;
+    esac
   done
   echo "$new_path"
 }

@@ -129,7 +129,7 @@ end
 function M.on_attach(client, bufnr)
   local bufpath = vim.api.nvim_buf_get_name(bufnr)
   M.find_compile_command(bufpath, function(command)
-    client.notify("workspace/didChangeConfiguration", {
+    client:notify("workspace/didChangeConfiguration", {
       settings = {
         compilationDatabaseChanges = {
           [bufpath] = command,
@@ -143,7 +143,7 @@ return {
   -- The default configuration incorrectly binds to "proto".
   filetypes = { "c", "cpp", "objc", "objcpp", "cuda" },
   -- TODO: use the on_attach handler from lsp-config as well.
-  on_attach = vim.list_extend({ M.on_attach }, collect_on_attach()),
+  -- on_attach = vim.list_extend({ M.on_attach }, collect_on_attach()),
   cmd = {
     "clangd", "--log=error",
   },

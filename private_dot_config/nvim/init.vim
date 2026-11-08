@@ -1,3 +1,4 @@
+set exrc " Load trusted per-project configurations.
 set runtimepath^=~/.vim runtimepath+=~/.vim/after
 let &packpath = &runtimepath
 source ~/.vimrc

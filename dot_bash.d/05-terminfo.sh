@@ -7,7 +7,7 @@ _install_terminfo() {
   # Else, attempt to install terminfo into the local db.
   find ~/.local/share/terminfo -maxdepth 1 -mindepth 1 -name '*.info' |
     while read info; do
-      if !grep -q "^${kind}|" "$info"; then
+      if ! grep -q "^${kind}|" "$info"; then
         # Skip info files without the current terminal.
         continue
       fi
