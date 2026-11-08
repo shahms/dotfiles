@@ -17,7 +17,7 @@ return {
   },
   {
     "google/vim-codefmt",
-    init = function()
+    config = function()
       -- TODO(shahms): Defer to vim.lsp.buf.format() when supported.
       local opts = { silent = true, remap = false, unique = true }
       vim.keymap.set("n", "<leader>=b", ":FormatCode<CR>", opts)
@@ -29,6 +29,7 @@ return {
         pattern = "bzl",
         command = "AutoFormatBuffer buildifier",
       })
+      vim.cmd("Glaive codefmt prettier_executable='prettier'")
     end,
 
     dependencies = {
