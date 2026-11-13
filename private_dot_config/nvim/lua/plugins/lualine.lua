@@ -7,7 +7,8 @@ return {
     },
     opts = {
       options = {
-        theme = "iceberg",
+        -- Loads lualine's theme named after the colorscheme, or derives one.
+        theme = "auto",
       },
       sections = {
         lualine_c = {
