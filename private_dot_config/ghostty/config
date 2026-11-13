@@ -23,8 +23,8 @@ confirm-close-surface = false
 # term = xterm-256color
 # or install the entry on the host:
 #   infocmp -x xterm-ghostty | ssh HOST -- tic -x -
-# ~/.bash.d/05-terminfo.sh also installs entries from
-# ~/.local/share/terminfo, but its ncurses snapshot predates Ghostty.
+# Hosts with these dotfiles need neither: ~/.bash.d/05-terminfo.sh
+# installs ~/.local/share/terminfo/ghostty.info.
 
 # Ghostty marks the tab title and bounces the Dock icon on a bell.
 # iTerm2 flashed the screen instead; the nearest match draws a border,

@@ -7,6 +7,8 @@
 [".local/share/terminfo/alacritty.info"]
     type = "file"
     url = "https://raw.githubusercontent.com/alacritty/alacritty/master/extra/alacritty.info"
+    refreshPeriod = "720h"
 [".local/share/terminfo/ncurses-src.info"]
     type = "file"
     url = "https://raw.githubusercontent.com/mirror/ncurses/master/misc/terminfo.src"
+    refreshPeriod = "720h"
