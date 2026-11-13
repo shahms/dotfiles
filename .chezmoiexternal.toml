@@ -10,5 +10,5 @@
     refreshPeriod = "720h"
 [".local/share/terminfo/ncurses-src.info"]
     type = "file"
-    url = "https://raw.githubusercontent.com/mirror/ncurses/master/misc/terminfo.src"
+    url = "https://raw.githubusercontent.com/ThomasDickey/ncurses-snapshots/master/misc/terminfo.src"
     refreshPeriod = "720h"
