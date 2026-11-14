@@ -4,7 +4,8 @@ command = sh -lc 'exec tmux new-session -A -s main'
 
 # Ghostty falls back to its built-in JetBrains Mono and Nerd Font
 # symbols on hosts with neither.
-font-family = Hack Nerd Font Mono
+font-family = Hack Nerd Font
+font-family = NotoMono Nerd Font
 font-family = Hack
 font-size = 12
 
