@@ -1,0 +1,25 @@
+#!/bin/sh
+# Reapplies the tide prompt style; conf.d/tide_overrides.fish layers
+# the hand edits over it. A fresh tide install resets the style
+# to Lean, so this also reruns whenever fish_plugins changes.
+# fish_plugins hash: {{ include "private_dot_config/private_fish/fish_plugins" | sha256sum }}
+set -eu
+command -v fish >/dev/null || exit 0
+exec fish -c '
+    functions -q tide || exit 0
+    tide configure --auto \
+        --style=Classic \
+        --prompt_colors="True color" \
+        --classic_prompt_color=Light \
+        --show_time=No \
+        --classic_prompt_separators=Vertical \
+        --powerline_prompt_heads=Sharp \
+        --powerline_prompt_tails=Flat \
+        --powerline_prompt_style="Two lines, character" \
+        --prompt_connection=Dotted \
+        --powerline_right_prompt_frame=No \
+        --prompt_connection_andor_frame_color=Darkest \
+        --prompt_spacing=Compact \
+        --icons="Few icons" \
+        --transient=Yes
+' >/dev/null
