@@ -1,0 +1,397 @@
+#!/usr/bin/env bash
+# Fetch, then carry unpushed work along with each remote bookmark that moved.
+#
+# For every remote bookmark moving from OLD to NEW, the local-only children of
+# OLD land on NEW. Commits reachable from a protected remote bookmark, before or
+# after the fetch, never move, so the sync forces no push of those. Neither do
+# commits a marker (below) remembers as published.
+#
+# By default only fast-forward moves count. The flags below extend that to the
+# rewrites and deletions produced by GitHub stacked pull requests.
+#
+# Options:
+#   -r, --revisions REVSET  Rebase only roots in REVSET (repeatable). Defaults
+#                           to the `sync_scope()` revset alias, else mutable().
+#   --all                   Rebase roots anywhere in mutable().
+#   --follow-rewrites       Also follow remote bookmarks rewritten upstream,
+#                           as when GitHub restacks a pull request.
+#   --restack-deleted       Treat a remote bookmark deleted upstream, usually by
+#                           a merged pull request, as protecting nothing.
+#                           Bookmarks built on it lose protection too, unless
+#                           they contain trunk(). Those stacks move to trunk()
+#                           from the bottom, and commits already landed there
+#                           drop out.
+#   --force PATTERN         Lift protection from remote bookmarks with names
+#                           matching PATTERN, a jj string pattern (glob by
+#                           default). Their commits move like unpushed ones, and
+#                           the next push rewrites them. Protection holds for a
+#                           commit while any protected bookmark still reaches it.
+#
+# Old positions still holding unpushed work get a local bookmark named
+# jj-sync/<remote>/<name>/<commit>. It lets a later sync finish the move, and
+# it keeps the replaced commits from passing for local work. Each one goes away
+# once nothing unpushed sits on it.
+#
+# Other arguments pass through to `jj git fetch`.
+#
+# Terms used below:
+#
+#   move        A remote bookmark leaving OLD for NEW. It comes from this
+#               fetch, or from a marker left by an earlier sync.
+#   fast-forward  A move where OLD is an ancestor of NEW. Anything else is a
+#               rewrite (GitHub restacks, force-pushes) or a deletion.
+#   protected   Reachable from a remote bookmark not lifted by --force or
+#               --restack-deleted. Moving such a commit would force a push.
+#   local-only  Visible, mutable, and neither protected (before or after the
+#               fetch) nor marked. The only commits the sync rebases.
+#   movable     Local-only and inside the requested scope. Only these become
+#               rebase roots. Their descendants follow regardless of scope.
+#   superseded  Published before the fetch or marked, unprotected now. A commit
+#               GitHub replaced or deleted.
+#
+# Revset caveat: any at_operation() term widens the whole expression to every
+# commit visible at that operation, including ones hidden since. children(),
+# roots(), mutable() and `~` then range over those too. Every set the script
+# acts on therefore intersects with visible().
+#
+# Error caveat: `set -e` ignores a failing jj inside `[[ $(...) ]]` or a `for`
+# word list. A bad revset there reads as empty. Revsets built from arguments
+# or config are checked once, outside those, before anything acts on them.
+# The rest use only commit IDs and builtins.
+set -euo pipefail
+
+# Quiet, since every rebase and abandon would otherwise report itself. Stdin is
+# closed so no jj subprocess can stall on a prompt.
+jj() { command jj --no-pager --quiet "$@" </dev/null; }
+join_by() { local IFS=$1; shift; echo "$*"; }
+nonempty() { [[ -n $(jj log --no-graph -r "$1" -T '"x"') ]]; }
+
+## Arguments
+
+forced=()
+scopes=()
+fetch_args=()
+follow_rewrites=false
+restack_deleted=false
+while (($#)); do
+  case $1 in
+    --force | -r | --revisions)
+      (($# >= 2)) || { echo "jj-sync: $1 needs an argument" >&2; exit 2; } ;;
+  esac
+  case $1 in
+    # Parenthesized, so `|` joining keeps each pattern or revset intact.
+    --force) forced+=("($2)"); shift 2 ;;
+    --force=*) forced+=("(${1#--force=})"); shift ;;
+    -r | --revisions) scopes+=("($2)"); shift 2 ;;
+    --revisions=*) scopes+=("(${1#--revisions=})"); shift ;;
+    --all) scopes+=('mutable()'); shift ;;
+    --follow-rewrites) follow_rewrites=true; shift ;;
+    --restack-deleted) restack_deleted=true; shift ;;
+    *) fetch_args+=("$1"); shift ;;
+  esac
+done
+if ((${#scopes[@]})); then
+  scope=$(join_by '|' "${scopes[@]}")
+# An undefined sync_scope() would fail every revset using it.
+elif jj config get 'revset-aliases."sync_scope()"' >/dev/null 2>&1; then
+  scope='sync_scope()'
+else
+  scope='mutable()'
+fi
+
+prefix=jj-sync
+markers="bookmarks(glob:\"$prefix/*\")"
+
+## Fetch
+
+# Every "before" question below is answered at this operation.
+pre=$(jj op log -n1 --no-graph -T 'id')
+
+# The sync spans many operations, beyond the reach of a single `jj undo`. A
+# failure partway leaves the repository mid-sync, so the hint runs on any exit.
+undo_hint() {
+  if [[ $(jj op log -n1 --no-graph -T 'id') != "$pre" ]]; then
+    echo "Undo with: jj op restore ${pre:0:12}" >&2
+  fi
+}
+trap undo_hint EXIT
+
+# Left to itself, the fetch abandons superseded commits and rebases their
+# descendants onto the nearest surviving ancestor. Local work on a restacked
+# pull request would land on old trunk, and a merge would lose that parent
+# outright. The sync needs those parents intact to know what to replace.
+#
+# The fetch keeps its normal output. Other jj calls print only errors.
+command jj --no-pager git fetch --config git.abandon-unreachable-commits=false \
+  ${fetch_args[@]+"${fetch_args[@]}"} </dev/null
+
+# Stand-in for the abandon just disabled. Commits published before the fetch
+# and unreachable from every remote bookmark now are gone upstream.
+gone="visible() & mutable() & ::at_operation($pre, remote_bookmarks()) ~ ::remote_bookmarks()"
+# Abandon only what no surviving head reaches, the rule proposed for jj in
+# #8641. Nothing gets rebased this way. A gone commit under local work, a
+# bookmark, @, or a marker stays. Once the rebases below move that work away,
+# the final abandon catches it.
+jj abandon -r "($gone) ~ ::((visible_heads() | bookmarks() | @) ~ ($gone))"
+
+## Moves
+
+# One "name@remote COMMIT" line per remote bookmark, "conflict" in place of
+# COMMIT when conflicted. Deleted refs are absent. The git pseudo-remote
+# mirrors local bookmarks, not anything upstream.
+remote_targets() {
+  jj bookmark list --all-remotes --ignore-working-copy "$@" -T '
+    if(remote && remote != "git" && present,
+      name ++ "@" ++ remote ++ " "
+        ++ if(conflict, "conflict", normal_target.commit_id()) ++ "\n")'
+}
+# join needs both inputs sorted the way it compares, hence one fixed locale.
+now=$(remote_targets | LC_ALL=C sort)
+
+# Each move is a line "name@remote OLD NEW MARKER". NEW reads "-" for a
+# deleted ref. MARKER names the bookmark remembering OLD, else "-".
+#
+# Refs present before the fetch, paired with their targets now. `-a 1` keeps
+# those missing now, and `-e -` fills in their NEW.
+fetched=$(LC_ALL=C join -a 1 -e - -o 0,1.2,2.2 \
+  <(remote_targets --at-op "$pre" | LC_ALL=C sort) <(echo "$now") |
+  awk '{ print $0, "-" }')
+# Marker jj-sync/<remote>/<name>/<commit> becomes the move name@remote from
+# the marked commit to wherever that ref points now. jj refuses remote names
+# containing a slash, so the first segment is the remote, the last is the
+# commit, and the name is everything between. Markers are ordinary bookmarks,
+# so one lacking those three parts was made by hand and gets ignored. Read
+# naively, it would name a ref with no target, which looks deleted.
+remembered=$(
+  jj bookmark list "glob:$prefix/*" -T 'if(!remote && normal_target,
+    name ++ " " ++ normal_target.commit_id() ++ "\n")' |
+  while read -r marker old; do
+    rest=${marker#"$prefix"/}
+    [[ $rest == ?*/?*/?* ]] || continue
+    ref="$(cut -d/ -f2- <<<"${rest%/*}")@${rest%%/*}"
+    new=$(awk -v ref="$ref" '$1 == ref { print $2 }' <<<"$now")
+    echo "$ref $old ${new:--} $marker"
+  done
+)
+# Markers first, so a duplicate keeps the marker name and the marker can still
+# be deleted once drained. Conflicted refs say nothing.
+all_moves=$(printf '%s\n%s\n' "$remembered" "$fetched" |
+  awk 'NF && $2 != "conflict" && $3 != "conflict" && !seen[$1 " " $2]++')
+# Markers get maintained for every entry, including the ones dropped below. A
+# marker whose ref returned to the marked commit only needs deleting.
+moves=$(awk '$2 != $3' <<<"$all_moves")
+
+# Refs leaving one commit for different places give no single destination,
+# as with main@origin and main@fork diverging. Upstream refuses the whole
+# sync. This skips those moves alone. The first awk pass counts distinct NEWs
+# per OLD, the second drops every move from an OLD with more than one.
+moves=$(awk '
+  NR == FNR { if (!seen[$2 " " $3]++) n[$2]++; next }
+  n[$2] > 1 { print "Skipping " $1 ": refs at " substr($2, 1, 12) " moved apart" > "/dev/stderr"; next }
+  { print }' <(echo "$moves") <(echo "$moves"))
+
+# Keep the moves allowed by the flags. Skipped ones are reported later, once
+# local_only can tell whether they strand anything.
+active=''
+skipped=''
+while read -r ref old new marker; do
+  [[ -n $ref ]] || continue
+  if [[ $new == - ]]; then
+    # Another ref still on OLD keeps it published, so nothing was lost. No
+    # later sync acts on this either, so the marker step drops its marker.
+    nonempty "$old & remote_bookmarks()" && continue
+    $restack_deleted || { skipped+="$ref $old --restack-deleted"$'\n'; continue; }
+  elif ! nonempty "$old & ::$new"; then
+    $follow_rewrites || { skipped+="$ref $old --follow-rewrites"$'\n'; continue; }
+  fi
+  active+="$ref $old $new $marker"$'\n'
+done <<<"$moves"
+
+## Protection
+
+# Protection is decided by bookmark name, not commit. Lifting it from one ref
+# leaves a commit protected while any other ref still reaches it, as when two
+# bookmarks share a target. A name covers every remote, so deleting s1@origin
+# also unprotects s1@fork. Names go into exact:"..." unescaped, which breaks
+# on the rare git ref name containing a double quote.
+ref_names='remote_bookmarks.filter(|b| b.remote() != "git").map(|b| b.name())'
+unprotected=("${forced[@]+"${forced[@]}"}")
+# OLD positions of deletions being acted on. Their markers stop protecting,
+# and the restack below starts from them.
+released=('none()')
+while read -r ref old new marker; do
+  [[ $new == - ]] || continue
+  unprotected+=("exact:\"${ref%@*}\"")
+  released+=("$old")
+  # Bookmarks built on the deleted one are the rest of its stack. They still
+  # carry its original commits, so they restack too. One containing trunk()
+  # was already reconciled upstream, as by GitHub's "Update branch".
+  for name in $(jj log --no-graph -r "remote_bookmarks() & $old:: ~ trunk()::" \
+      -T "$ref_names.join(\"\n\") ++ \"\n\""); do
+    unprotected+=("exact:\"$name\"")
+  done
+done <<<"$active"
+released=$(join_by '|' "${released[@]}")
+
+# A string-pattern negation, valid as remote_bookmarks()'s name argument.
+if ((${#unprotected[@]})); then
+  unprotected_names=$(join_by '|' "${unprotected[@]}")
+  protected="~($unprotected_names)"
+else
+  unprotected_names=''
+  protected='*'
+fi
+
+# Commit IDs instead of the markers revset, since this set must stay valid
+# after the markers it names are deleted near the end.
+marker_ids=$(jj log --no-graph -r "$markers" -T 'commit_id ++ "|"')none\(\)
+# Published before the fetch. That covers commits replaced in this fetch.
+# Markers extend it to commits replaced in earlier fetches but still kept
+# alive by local work. Without them, those would pass for local work.
+was_pushed="::at_operation($pre, remote_bookmarks($protected)) | ::(($marker_ids) ~ ($released))"
+# --force frees what a ref publishes now. What upstream replaced stays
+# replaced, or a forced ref rewritten in this fetch would leave its old
+# commits looking like local work. A deleted ref replaced nothing, and its
+# commits restack from the bottom like any released stack.
+if ((${#forced[@]})); then
+  forced_names=$(join_by '|' "${forced[@]}")
+  was_pushed+=" | (::at_operation($pre, remote_bookmarks($forced_names))
+    ~ ::remote_bookmarks($forced_names) ~ ::($released))"
+fi
+# Published now, newly fetched commits included.
+is_pushed="::remote_bookmarks($protected)"
+local_only="visible() & mutable() ~ ($was_pushed) ~ ($is_pushed)"
+# Frozen by change ID before any rebase. A scope such as reachable(@, ...)
+# would otherwise shrink as rebases detach commits from @. change_id() rather
+# than a bare change ID, which fails to resolve when divergent. mutable()
+# needs no freezing.
+if [[ $scope != 'mutable()' ]]; then
+  scope=$(jj log --no-graph -r "$scope" -T '"change_id(" ++ change_id ++ ")|"')none\(\)
+fi
+movable="($local_only) & ($scope)"
+# Fail here, where `set -e` applies, rather than read as empty below.
+jj log --no-graph -r "($movable) | ($was_pushed)" -T '""' >/dev/null
+
+# Only worth a warning when unpushed work sits on the skipped OLD.
+while read -r ref old flag; do
+  [[ -n $ref ]] || continue
+  nonempty "children($old) & ($local_only)" &&
+    echo "Skipping $ref: rewritten or deleted upstream, see $flag" >&2
+done <<<"$skipped"
+
+# A forced ref still reached by a protected one gains nothing from --force.
+if ((${#forced[@]})); then
+  for ref in $(jj log --no-graph -r "remote_bookmarks($forced_names) & $is_pushed" \
+      -T 'remote_bookmarks.filter(|b| b.remote() != "git")
+            .map(|b| b.name() ++ "@" ++ b.remote()).join("\n") ++ "\n"'); do
+    echo "Still protected by a bookmark built on it: $ref" >&2
+  done
+fi
+
+## Rebase
+
+# Rebase each root in $1 onto its parents, replacing those in $2 with $3.
+#
+# `-o` replaces every parent, so the new parent list is spelled out. A merge
+# keeps its other parents, and only the stale one moves. `-s` brings all
+# descendants along.
+#
+# An earlier iteration may have rewritten a later root, as a descendant of its
+# own root, so commit IDs listed up front go stale. Change IDs survive that.
+# A bare change ID fails to resolve when divergent, though, so each one is
+# narrowed by re-evaluating $1. In the moves loop a rewritten root still
+# matches, since it still has the stale parent. The fallback's roots never
+# descend from one another, so none of them gets rewritten early. Every
+# divergent copy gets its own rebase, and a root emptied and abandoned by an
+# earlier rebase drops out.
+#
+# --skip-emptied drops any rebased commit left empty, such as one whose
+# changes landed upstream through a squash merge. Commits empty from the start
+# stay.
+rebased='none()'
+reparent() {
+  local roots=$1 old=$2 new=$3 change commit
+  for change in $(jj log --no-graph -r "$roots" -T 'change_id ++ "\n"' | sort -u); do
+    for commit in $(jj log --no-graph -r "change_id($change) & ($roots)" -T 'commit_id ++ "\n"'); do
+      jj rebase --skip-emptied -s "$commit" -o "(parents($commit) ~ ($old)) | ($new)"
+    done
+    rebased+=" | change_id($change)"
+  done
+}
+
+# Children of OLD, not descendants. Descendants beyond a protected child stay
+# on that child and follow it only when its own ref moves. A child already in
+# NEW's history stays too. That happens when --force frees a ref that moved
+# forward from an OLD still protected by another ref, and rebasing NEW's own
+# ancestors onto NEW would fail.
+while read -r ref old new marker; do
+  [[ -n $ref ]] || continue
+  # Abandoned above, so nothing local builds on it.
+  nonempty "$old & visible()" || continue
+  # An unprotected OLD is a commit of a deleted or forced stack. It moves as a
+  # root of its own chain below. Rebasing its children here would cut it out.
+  nonempty "$old & ($local_only)" && continue
+  # A deleted ref has nothing to follow, and trunk() stands in.
+  [[ $new == - ]] && new='trunk()'
+  reparent "children($old) & ($movable) ~ ::($new)" "$old" "$new"
+done <<<"$active"
+
+# The bottom of each unprotected stack, sitting on some trunk commit other
+# than the current one, moves to trunk(). Its base may predate this fetch, as
+# when main moved in an earlier sync. Unpushed work on an older trunk commit
+# was never published, so it falls outside this set and stays put.
+if [[ -n $unprotected_names ]]; then
+  restacked="::at_operation($pre, remote_bookmarks($unprotected_names))
+    | ::remote_bookmarks($unprotected_names) | ::($released)"
+  reparent "roots($local_only) & ($movable) & ($restacked) & children(::trunk() ~ trunk())" \
+    '::trunk()' 'trunk()'
+fi
+
+## Cleanup
+
+# A bookmark advanced locally while upstream rewrote it conflicts after the
+# fetch. Once the rebases above put the local side on the remote side, a
+# single head among its targets contains the others. That head must be
+# local-only. A published head would mean a local move backward, which this
+# must not undo.
+for name in $(jj bookmark list --conflicted -T 'if(!remote, name ++ "\n")'); do
+  targets="heads(bookmarks(exact:\"$name\"))"
+  if [[ $(jj log --no-graph -r "$targets" -T '"x"') == x ]] &&
+      nonempty "$targets & ($local_only)"; then
+    jj bookmark set "$name" -r "$targets"
+  fi
+done
+
+# Swapping one parent of a merge can leave one parent an ancestor of another,
+# as with a megamerge of main and a stack restacked onto main. As upstream
+# does, only rebase roots lose such edges. Descendants keep theirs. Roots are
+# tracked by change ID, so every divergent copy of a root counts as one.
+jj simplify-parents -r "($rebased) & ($local_only)"
+
+# Mark each old position still holding unpushed work, and unmark the rest.
+# This runs over every entry, since a skipped or ambiguous move strands work
+# too.
+while read -r ref old new marker; do
+  [[ -n $ref ]] || continue
+  # The commit ID in the name allows several generations per ref. It also
+  # keeps every marker a leaf, so `x` and `x/y` never collide as git refs.
+  name="$prefix/${ref##*@}/${ref%@*}/${old:0:12}"
+  # Nothing needs remembering when the ref is back at OLD, when a deletion is
+  # moot because another ref still holds OLD, or when OLD itself is local
+  # work, such as a closed pull request, which moves as local work.
+  if [[ $old != "$new" ]] &&
+      ! { [[ $new == - ]] && nonempty "$old & remote_bookmarks()"; } &&
+      nonempty "$old & visible() ~ ($local_only)" &&
+      nonempty "children($old) & ($local_only)"; then
+    [[ $marker != - ]] || nonempty "present(bookmarks(exact:\"$name\"))" ||
+      jj bookmark create "$name" -r "$old"
+  elif [[ $marker != - ]]; then
+    jj bookmark delete "exact:\"$marker\""
+  fi
+done <<<"$all_moves"
+
+# Commits replaced upstream, once nothing local builds on them. This uses the
+# same keep rule as the first abandon. It runs after the markers update, since
+# a marker still in place would keep its commit.
+superseded="visible() & mutable() & ($was_pushed) ~ ($is_pushed)"
+jj abandon -r "($superseded) ~ ::((visible_heads() | bookmarks() | @) ~ ($superseded))"

@@ -12,9 +12,9 @@ log_node = 'if(self && !current_working_copy && !immutable && !conflict && in_br
 
 [aliases]
 #up = ["rebase", "-d", "main", "-b", "immutable_heads().. & mutable()"]
-# Rebase any branches not on trunk() which aren't descended from a different remote bookmark.
-# We don't want to rebase revisions which have been pushed upstream unintentionally.
-sync = ["rebase", "-o", "trunk()", "-b", "heads(trunk()..) ~ heads(remote_bookmarks() | immutable_heads())::"]
+# Fetch, then rebase local work along with each remote bookmark that moved, without
+# moving anything published. Restacks follow GitHub stacked PRs. See ~/.config/jj/jj-sync.
+sync = ["util", "exec", "--", "bash", "-c", 'exec ~/.config/jj/jj-sync --follow-rewrites --restack-deleted "$@"', ""]
 #tug = ["bookmark", "move", "--from", "closest_bookmark(@)", "--to", "closest_pushable(@)"]
 tug = ["bookmark", "advance"]
 push = ["util", "exec", "--", "uvx", "jj-pre-push", "push"]
