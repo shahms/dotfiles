@@ -62,7 +62,13 @@ set -euo pipefail
 
 # Quiet, since every rebase and abandon would otherwise report itself. Stdin is
 # closed so no jj subprocess can stall on a prompt.
-jj() { command jj --no-pager --quiet "$@" </dev/null; }
+#
+# Snapshotting a large working copy costs far more than a query, and the one
+# taken before the fetch covers the whole sync. Plain jj skips it. jj_wc keeps
+# it for commands that can rewrite @, since those must also update the files
+# on disk. Skipping it there would leave the working copy stale.
+jj() { command jj --no-pager --quiet --ignore-working-copy "$@" </dev/null; }
+jj_wc() { command jj --no-pager --quiet "$@" </dev/null; }
 join_by() { local IFS=$1; shift; echo "$*"; }
 nonempty() { [[ -n $(jj log --no-graph -r "$1" -T '"x"') ]]; }
 
@@ -104,8 +110,9 @@ markers="bookmarks(glob:\"$prefix/*\")"
 
 ## Fetch
 
-# Every "before" question below is answered at this operation.
-pre=$(jj op log -n1 --no-graph -T 'id')
+# Every "before" question below is answered at this operation. jj_wc
+# snapshots the working copy first, so restoring this operation loses no edits.
+pre=$(jj_wc op log -n1 --no-graph -T 'id')
 
 # The sync spans many operations, beyond the reach of a single `jj undo`. A
 # failure partway leaves the repository mid-sync, so the hint runs on any exit.
@@ -132,7 +139,10 @@ gone="visible() & mutable() & ::at_operation($pre, remote_bookmarks()) ~ ::remot
 # #8641. Nothing gets rebased this way. A gone commit under local work, a
 # bookmark, @, or a marker stays. Once the rebases below move that work away,
 # the final abandon catches it.
-jj abandon -r "($gone) ~ ::((visible_heads() | bookmarks() | @) ~ ($gone))"
+#
+# jj_wc, since @ itself can be gone, as when editing a published commit.
+# Abandoning it moves @ to a new commit.
+jj_wc abandon -r "($gone) ~ ::((visible_heads() | bookmarks() | @) ~ ($gone))"
 
 ## Moves
 
@@ -140,7 +150,7 @@ jj abandon -r "($gone) ~ ::((visible_heads() | bookmarks() | @) ~ ($gone))"
 # COMMIT when conflicted. Deleted refs are absent. The git pseudo-remote
 # mirrors local bookmarks, not anything upstream.
 remote_targets() {
-  jj bookmark list --all-remotes --ignore-working-copy "$@" -T '
+  jj bookmark list --all-remotes "$@" -T '
     if(remote && remote != "git" && present,
       name ++ "@" ++ remote ++ " "
         ++ if(conflict, "conflict", normal_target.commit_id()) ++ "\n")'
@@ -177,6 +187,22 @@ remembered=$(
 # be deleted once drained. Conflicted refs say nothing.
 all_moves=$(printf '%s\n%s\n' "$remembered" "$fetched" |
   awk 'NF && $2 != "conflict" && $3 != "conflict" && !seen[$1 " " $2]++')
+# A fast-forward or rewrite matters only when its OLD has mutable children,
+# since only those move. That also drops an OLD abandoned above. One query
+# covers every OLD, so a busy remote costs one call, not several per moved
+# ref.
+#
+# A deletion always matters. It can release a whole stack, with local work on
+# a commit below OLD. Keeping its OLD keeps every other entry from that OLD,
+# so the ambiguity check below still sees them all.
+#
+# An entry with a marker stays, since its marker needs upkeep. That marker
+# also keeps its OLD visible.
+olds=$(awk '$4 == "-" && $2 != $3 { printf "%s|", $2 }' <<<"$all_moves")none\(\)
+relevant=$(jj log --no-graph -r "($olds) & parents(mutable())" -T 'commit_id ++ "\n"')
+relevant+=$'\n'$(awk '$3 == "-" { print $2 }' <<<"$all_moves")
+all_moves=$(awk 'NR == FNR { keep[$1]; next } NF && ($4 != "-" || $2 in keep)' \
+  <(echo "$relevant") <(echo "$all_moves"))
 # Markers get maintained for every entry, including the ones dropped below. A
 # marker whose ref returned to the marked commit only needs deleting.
 moves=$(awk '$2 != $3' <<<"$all_moves")
@@ -312,7 +338,8 @@ reparent() {
   local roots=$1 old=$2 new=$3 change commit
   for change in $(jj log --no-graph -r "$roots" -T 'change_id ++ "\n"' | sort -u); do
     for commit in $(jj log --no-graph -r "change_id($change) & ($roots)" -T 'commit_id ++ "\n"'); do
-      jj rebase --skip-emptied -s "$commit" -o "(parents($commit) ~ ($old)) | ($new)"
+      # jj_wc, since @ is often the root or one of its descendants.
+      jj_wc rebase --skip-emptied -s "$commit" -o "(parents($commit) ~ ($old)) | ($new)"
     done
     rebased+=" | change_id($change)"
   done
@@ -325,8 +352,6 @@ reparent() {
 # ancestors onto NEW would fail.
 while read -r ref old new marker; do
   [[ -n $ref ]] || continue
-  # Abandoned above, so nothing local builds on it.
-  nonempty "$old & visible()" || continue
   # An unprotected OLD is a commit of a deleted or forced stack. It moves as a
   # root of its own chain below. Rebasing its children here would cut it out.
   nonempty "$old & ($local_only)" && continue
@@ -365,7 +390,9 @@ done
 # as with a megamerge of main and a stack restacked onto main. As upstream
 # does, only rebase roots lose such edges. Descendants keep theirs. Roots are
 # tracked by change ID, so every divergent copy of a root counts as one.
-jj simplify-parents -r "($rebased) & ($local_only)"
+#
+# jj_wc, since rewriting a root rewrites @ too when @ descends from it.
+jj_wc simplify-parents -r "($rebased) & ($local_only)"
 
 # Mark each old position still holding unpushed work, and unmark the rest.
 # This runs over every entry, since a skipped or ambiguous move strands work
@@ -391,6 +418,7 @@ done <<<"$all_moves"
 
 # Commits replaced upstream, once nothing local builds on them. This uses the
 # same keep rule as the first abandon. It runs after the markers update, since
-# a marker still in place would keep its commit.
+# a marker still in place would keep its commit. jj_wc for the same reason as
+# the first abandon.
 superseded="visible() & mutable() & ($was_pushed) ~ ($is_pushed)"
-jj abandon -r "($superseded) ~ ::((visible_heads() | bookmarks() | @) ~ ($superseded))"
+jj_wc abandon -r "($superseded) ~ ::((visible_heads() | bookmarks() | @) ~ ($superseded))"
