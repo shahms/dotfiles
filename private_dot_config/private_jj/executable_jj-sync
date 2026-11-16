@@ -26,6 +26,7 @@
 #                           default). Their commits move like unpushed ones, and
 #                           the next push rewrites them. Protection holds for a
 #                           commit while any protected bookmark still reaches it.
+#   -h, --help              Show this text and exit.
 #
 # Old positions still holding unpushed work get a local bookmark named
 # jj-sync/<remote>/<name>/<commit>. It lets a later sync finish the move, and
@@ -38,7 +39,8 @@
 #
 #   move        A remote bookmark leaving OLD for NEW. It comes from this
 #               fetch, or from a marker left by an earlier sync.
-#   fast-forward  A move where OLD is an ancestor of NEW. Anything else is a
+#   fast-forward
+#               A move where OLD is an ancestor of NEW. Anything else is a
 #               rewrite (GitHub restacks, force-pushes) or a deletion.
 #   protected   Reachable from a remote bookmark not lifted by --force or
 #               --restack-deleted. Moving such a commit would force a push.
@@ -93,6 +95,8 @@ while (($#)); do
     --all) scopes+=('mutable()'); shift ;;
     --follow-rewrites) follow_rewrites=true; shift ;;
     --restack-deleted) restack_deleted=true; shift ;;
+    # Passed through, it would print the fetch's help and then sync anyway.
+    -h | --help) sed -n '2,/^# Other arguments/s/^# \{0,1\}//p' "$0"; exit ;;
     *) fetch_args+=("$1"); shift ;;
   esac
 done
@@ -203,8 +207,9 @@ relevant=$(jj log --no-graph -r "($olds) & parents(mutable())" -T 'commit_id ++ 
 relevant+=$'\n'$(awk '$3 == "-" { print $2 }' <<<"$all_moves")
 all_moves=$(awk 'NR == FNR { keep[$1]; next } NF && ($4 != "-" || $2 in keep)' \
   <(echo "$relevant") <(echo "$all_moves"))
-# Markers get maintained for every entry, including the ones dropped below. A
-# marker whose ref returned to the marked commit only needs deleting.
+# Markers get maintained for every entry still here, including the moves
+# dropped below. A marker whose ref returned to the marked commit only needs
+# deleting.
 moves=$(awk '$2 != $3' <<<"$all_moves")
 
 # Refs leaving one commit for different places give no single destination,
