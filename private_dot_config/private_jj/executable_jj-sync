@@ -218,11 +218,11 @@ ref_names='remote_bookmarks.filter(|b| b.remote() != "git").map(|b| b.name())'
 unprotected=("${forced[@]+"${forced[@]}"}")
 # OLD positions of deletions being acted on. Their markers stop protecting,
 # and the restack below starts from them.
-released=('none()')
+released='none()'
 while read -r ref old new marker; do
   [[ $new == - ]] || continue
   unprotected+=("exact:\"${ref%@*}\"")
-  released+=("$old")
+  released+=" | $old"
   # Bookmarks built on the deleted one are the rest of its stack. They still
   # carry its original commits, so they restack too. One containing trunk()
   # was already reconciled upstream, as by GitHub's "Update branch".
@@ -231,7 +231,6 @@ while read -r ref old new marker; do
     unprotected+=("exact:\"$name\"")
   done
 done <<<"$active"
-released=$(join_by '|' "${released[@]}")
 
 # A string-pattern negation, valid as remote_bookmarks()'s name argument.
 if ((${#unprotected[@]})); then
