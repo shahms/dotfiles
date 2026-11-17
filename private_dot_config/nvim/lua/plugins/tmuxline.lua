@@ -9,6 +9,8 @@ return {
       -- fixed "powerline" colors. After changing it, regenerate
       -- ~/.tmux/tmuxline.snapshot. tmuxline has no GitHub or Ayu theme.
       vim.g.tmuxline_theme = "jellybeans"
+      -- Defined in autoload/tmuxline/presets/labeled.vim.
+      vim.g.tmuxline_preset = "labeled"
     end,
   },
 }

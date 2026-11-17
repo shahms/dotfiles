@@ -1,5 +1,5 @@
 # This tmux statusbar config was created by tmuxline.vim
-# on Fri, 13 Nov 2026
+# on Tue, 17 Nov 2026
 
 set -g status-justify "left"
 set -g status "on"
@@ -17,5 +17,5 @@ setw -g window-status-separator ""
 setw -g window-status-style "none,fg=colour103,bg=colour236"
 set -g status-left "#[fg=colour236,bg=colour103] #S #[fg=colour103,bg=colour236,nobold,nounderscore,noitalics]"
 set -g status-right "#[fg=colour239,bg=colour236,nobold,nounderscore,noitalics]#[fg=colour253,bg=colour239] %Y-%m-%d | %H:%M #[fg=colour103,bg=colour239,nobold,nounderscore,noitalics]#[fg=colour236,bg=colour103] #h "
-setw -g window-status-format "#[fg=colour103,bg=colour236] #I |#[fg=colour103,bg=colour236] #W "
-setw -g window-status-current-format "#[fg=colour236,bg=colour103,nobold,nounderscore,noitalics]#[fg=colour236,bg=colour103] #I |#[fg=colour236,bg=colour103] #W #[fg=colour103,bg=colour236,nobold,nounderscore,noitalics]"
+setw -g window-status-format "#[fg=colour103,bg=colour236] #I |#[fg=colour103,bg=colour236] #{?#{@window_label},#{@window_label}: ,}#W "
+setw -g window-status-current-format "#[fg=colour236,bg=colour103,nobold,nounderscore,noitalics]#[fg=colour236,bg=colour103] #I |#[fg=colour236,bg=colour103] #{?#{@window_label},#{@window_label}: ,}#W #[fg=colour103,bg=colour236,nobold,nounderscore,noitalics]"
