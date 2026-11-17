@@ -1,3 +1,5 @@
 return {
-  "NicolasGB/jj.nvim"
+  "NicolasGB/jj.nvim",
+  version = "*", -- Use the latest stable release
+  opts = {},
 }
