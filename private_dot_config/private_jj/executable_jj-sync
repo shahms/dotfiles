@@ -6,6 +6,10 @@
 # after the fetch, never move, so the sync forces no push of those. Neither do
 # commits a marker (below) remembers as published.
 #
+# Local-only work left on an older trunk() commit also lands on trunk(), as
+# when a plain `jj git fetch` moved trunk() outside a sync. Work on a commit
+# holding another remote bookmark, such as a release branch, stays put.
+#
 # By default only fast-forward moves count. The flags below extend that to the
 # rewrites and deletions produced by GitHub stacked pull requests.
 #
@@ -26,6 +30,8 @@
 #                           default). Their commits move like unpushed ones, and
 #                           the next push rewrites them. Protection holds for a
 #                           commit while any protected bookmark still reaches it.
+#   --no-catch-up           Leave local-only work on an older trunk() commit
+#                           in place unless a move or released stack covers it.
 #   -h, --help              Show this text and exit.
 #
 # Old positions still holding unpushed work get a local bookmark named
@@ -81,6 +87,7 @@ scopes=()
 fetch_args=()
 follow_rewrites=false
 restack_deleted=false
+catch_up=true
 while (($#)); do
   case $1 in
     --force | -r | --revisions)
@@ -95,6 +102,7 @@ while (($#)); do
     --all) scopes+=('mutable()'); shift ;;
     --follow-rewrites) follow_rewrites=true; shift ;;
     --restack-deleted) restack_deleted=true; shift ;;
+    --no-catch-up) catch_up=false; shift ;;
     # Passed through, it would print the fetch's help and then sync anyway.
     -h | --help) sed -n '2,/^# Other arguments/s/^# \{0,1\}//p' "$0"; exit ;;
     *) fetch_args+=("$1"); shift ;;
@@ -367,13 +375,33 @@ done <<<"$active"
 
 # The bottom of each unprotected stack, sitting on some trunk commit other
 # than the current one, moves to trunk(). Its base may predate this fetch, as
-# when main moved in an earlier sync. Unpushed work on an older trunk commit
-# was never published, so it falls outside this set and stays put.
+# when main moved in an earlier sync.
+#
+# Catching up widens this to every local-only root, since no move records how
+# work fell behind when a plain fetch moved trunk(). A root on a commit holding
+# another remote bookmark stays. Its bookmark, such as a release branch, says
+# where it belongs, and the moves above carry it from there.
+restacked='none()'
 if [[ -n $unprotected_names ]]; then
   restacked="::at_operation($pre, remote_bookmarks($unprotected_names))
     | ::remote_bookmarks($unprotected_names) | ::($released)"
+fi
+if $catch_up; then
+  restacked="($restacked) | ~children(remote_bookmarks() ~ trunk())"
+fi
+if [[ $restacked != 'none()' ]]; then
   reparent "roots($local_only) & ($movable) & ($restacked) & children(::trunk() ~ trunk())" \
     '::trunk()' 'trunk()'
+fi
+# The guard can't tell trunk work from release work when a release branch was
+# cut where the work sits, so it holds both. Run after the rebases, this lists
+# only the roots still behind.
+if $catch_up; then
+  jj log --no-graph -r "roots($local_only) & ($movable)
+      & children(::trunk() ~ trunk()) & children(remote_bookmarks() ~ trunk())" -T '
+    "Not catching up " ++ change_id.short() ++ ": its base holds "
+      ++ parents.map(|p| p.remote_bookmarks().filter(|b| b.remote() != "git")
+        .map(|b| b.name() ++ "@" ++ b.remote()).join(", ")).join(", ") ++ "\n"' >&2
 fi
 
 ## Cleanup
