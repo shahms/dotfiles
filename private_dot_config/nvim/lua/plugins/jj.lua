@@ -17,6 +17,8 @@ local function changed_files(rev)
     elseif file and line:match("^deleted file mode") then
       table.remove(files)
       file = nil
+    elseif file and line:match("^new file mode") then
+      file.new = true
     elseif file then
       local start = line:match("^@@ %-%S+ %+(%d+)")
       if start then
@@ -27,6 +29,12 @@ local function changed_files(rev)
         -- Prefer the first added line, which the buffer shows.
         hunk.text = line
       end
+    end
+  end
+  -- Empty and binary files have no hunks, so point at their first line.
+  for _, f in ipairs(files) do
+    if #f.hunks == 0 then
+      f.hunks[1] = { lnum = 1, text = f.new and "new file" or nil }
     end
   end
   return files
@@ -86,8 +94,7 @@ local function open(rev, only)
   -- Reverse order leaves the first file in the window, on the first entry.
   local keep = {}
   for i = #files, 1, -1 do
-    local lnum = files[i].hunks[1] and files[i].hunks[1].lnum or 1
-    vim.cmd("edit +" .. lnum .. " " .. vim.fn.fnameescape(files[i].path))
+    vim.cmd("edit +" .. files[i].hunks[1].lnum .. " " .. vim.fn.fnameescape(files[i].path))
     keep[vim.api.nvim_buf_get_name(0)] = true
   end
   if only then
