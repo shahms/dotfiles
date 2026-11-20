@@ -40,6 +40,27 @@ local function changed_files(rev)
   return files
 end
 
+local header_exts = { h = true, hh = true, hpp = true, hxx = true }
+
+local function split_ext(path)
+  local stem, ext = path:match("^(.*)%.([^./]*)$")
+  return stem or path, (ext or ""):lower()
+end
+
+-- Orders by path without extension, then each header before its source.
+local function header_first(a, b)
+  local a_stem, a_ext = split_ext(a.path)
+  local b_stem, b_ext = split_ext(b.path)
+  if a_stem ~= b_stem then
+    return a_stem < b_stem
+  end
+  local a_header, b_header = header_exts[a_ext] or false, header_exts[b_ext] or false
+  if a_header ~= b_header then
+    return a_header
+  end
+  return a.path < b.path
+end
+
 -- Deletes listed file buffers outside `keep`, sparing modified ones.
 local function close_others(keep)
   local skipped = 0
@@ -83,6 +104,7 @@ local function open(rev, only)
     utils.notify("No added or modified files in " .. rev)
     return
   end
+  table.sort(files, header_first)
   local items = {}
   for _, file in ipairs(files) do
     file.path = vim.fs.joinpath(root, file.path)
