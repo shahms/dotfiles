@@ -1,0 +1,5 @@
+# The source directory is a jj repo colocated with git, which leaves git on a
+# detached HEAD that `git pull` refuses.
+[update]
+command = "jj"
+args = ["sync"]

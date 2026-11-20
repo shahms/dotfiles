@@ -1,0 +1,9 @@
+#!/bin/sh
+# `chezmoi init` clones with plain git; colocate jj once it's installed.
+# Runs on every apply, since the first apply may precede installing jj.
+set -eu
+cd {{ .chezmoi.sourceDir | quote }}
+[ -d .jj ] && exit 0
+command -v jj >/dev/null || exit 0
+jj git init --colocate
+jj bookmark track main --remote=origin
