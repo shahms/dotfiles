@@ -140,6 +140,13 @@ return {
   opts = {},
   config = function(_, opts)
     require("jj").setup(opts)
+    -- The parser knows only builtin node symbols, so a line with the
+    -- templates.log_node "◇" reads as a description of the change above it.
+    local parser = require("jj.core.parser")
+    local get_revset = parser.get_revset
+    parser.get_revset = function(line)
+      return get_revset((line:gsub("◇", "◆")))
+    end
     -- :J dispatches through cmd.j at call time, so wrapping it adds `open`.
     local cmd = require("jj.cmd")
     local j = cmd.j
