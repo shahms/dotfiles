@@ -60,7 +60,7 @@ edit-args = [
 [revsets]
 bookmark-advance-to = 'closest_pushable(@)'
 fix = '@'
-log = 'active'
+log = 'active | @- | @+'
 
 
 [git]
